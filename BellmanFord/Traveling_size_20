@@ -1,0 +1,131 @@
+string Traveling(int edgeList[][3], int numEdges, char start) {
+    vector<int> uniqueNodes;
+
+    // Tìm tất cả đỉnh duy nhất
+    for (int i = 0; i < numEdges; ++i) {
+        int from = edgeList[i][0];
+        int to = edgeList[i][1];
+        if (find(uniqueNodes.begin(), uniqueNodes.end(), from) == uniqueNodes.end())
+            uniqueNodes.push_back(from);
+        if (find(uniqueNodes.begin(), uniqueNodes.end(), to) == uniqueNodes.end())
+            uniqueNodes.push_back(to);
+    }
+
+    sort(uniqueNodes.begin(), uniqueNodes.end());
+    int numNodes = uniqueNodes.size();
+
+    // Ánh xạ node value sang index
+    int adjMatrix[100][100];
+    for (int i = 0; i < numNodes; ++i)
+        for (int j = 0; j < numNodes; ++j)
+            adjMatrix[i][j] = -1;
+
+    // Gán trọng số vào ma trận kề
+    for (int i = 0; i < numEdges; ++i) {
+        int uVal = edgeList[i][0];
+        int vVal = edgeList[i][1];
+        int w = edgeList[i][2];
+
+        int u = -1, v = -1;
+        for (int j = 0; j < numNodes; ++j) {
+            if (uniqueNodes[j] == uVal) u = j;
+            if (uniqueNodes[j] == vVal) v = j;
+        }
+
+        if (adjMatrix[u][v] == -1 || w < adjMatrix[u][v])
+            adjMatrix[u][v] = w;
+    }
+
+    // Tìm chỉ số bắt đầu
+    int startIndex = -1;
+    for (int i = 0; i < numNodes; ++i)
+        if (uniqueNodes[i] == (int)start)
+            startIndex = i;
+
+    // Thuật toán Nearest Neighbor
+    vector<int> path;
+    bool visited[100] = {false};
+    int current = startIndex;
+    path.push_back(current);
+    visited[current] = true;
+
+    for (int step = 1; step < numNodes; ++step) {
+        int next = -1, minCost = 1e9;
+        for (int j = 0; j < numNodes; ++j) {
+            if (!visited[j] && adjMatrix[current][j] != -1 && adjMatrix[current][j] < minCost) {
+                minCost = adjMatrix[current][j];
+                next = j;
+            }
+        }
+
+        if (next == -1) {
+            // Không tìm thấy cạnh hợp lệ - chọn đại 1 đỉnh chưa thăm
+            for (int j = 0; j < numNodes; ++j) {
+                if (!visited[j]) {
+                    next = j;
+                    break;
+                }
+            }
+        }
+
+        path.push_back(next);
+        visited[next] = true;
+        current = next;
+    }
+
+    path.push_back(startIndex); // quay lại điểm đầu
+
+    // 2-Opt cải tiến đường đi
+    vector<int> currentPath = path;
+    long long currentCost = 0;
+    bool validPath = true;
+    for (int i = 0; i < currentPath.size() - 1; ++i) {
+        int u = currentPath[i];
+        int v = currentPath[i + 1];
+        if (adjMatrix[u][v] == -1) {
+            validPath = false;
+            break;
+        }
+        currentCost += adjMatrix[u][v];
+    }
+    if (!validPath) currentCost = -1;
+
+    bool improved = true;
+    while (improved) {
+        improved = false;
+        for (int i = 1; i < numNodes - 1; ++i) {
+            for (int j = i + 1; j < numNodes; ++j) {
+                vector<int> newPath = currentPath;
+                reverse(newPath.begin() + i, newPath.begin() + j + 1);
+
+                long long newCost = 0;
+                bool isValid = true;
+                for (int k = 0; k < newPath.size() - 1; ++k) {
+                    int u = newPath[k];
+                    int v = newPath[k + 1];
+                    if (adjMatrix[u][v] == -1) {
+                        isValid = false;
+                        break;
+                    }
+                    newCost += adjMatrix[u][v];
+                }
+
+                if (isValid && (currentCost == -1 || newCost < currentCost)) {
+                    currentPath = newPath;
+                    currentCost = newCost;
+                    improved = true;
+                }
+            }
+        }
+    }
+
+    // Kết quả trả về
+    string result = "";
+    for (int i = 0; i < currentPath.size(); ++i) {
+        result += (char)(uniqueNodes[currentPath[i]]);
+        if (i < currentPath.size() - 1)
+            result += " ";
+    }
+
+    return result;
+}
