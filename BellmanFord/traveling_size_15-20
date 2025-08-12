@@ -1,0 +1,100 @@
+// Hàm ánh xạ giá trị đỉnh về chỉ số trong mảng nodes
+int getIndex(const vector<int>& nodes, int val) {
+    for (int i = 0; i < (int)nodes.size(); ++i) {
+        if (nodes[i] == val) return i;
+    }
+    return -1;
+}
+
+// Hàm ánh xạ chỉ số về ký tự tương ứng
+char getChar(const vector<int>& nodes, int idx) {
+    return (char)nodes[idx];
+}
+
+string Traveling(int edgeList[][3], int numEdges, char start) {
+    const int INF = 1e9;
+    vector<int> nodes;
+
+    // Bước 1: Thu thập các đỉnh và loại trùng
+    for (int i = 0; i < numEdges; ++i) {
+        nodes.push_back(edgeList[i][0]);
+        nodes.push_back(edgeList[i][1]);
+    }
+    sort(nodes.begin(), nodes.end());
+    nodes.erase(unique(nodes.begin(), nodes.end()), nodes.end());
+
+    int n = nodes.size();
+
+    // Bước 2: Tạo ma trận kề
+    vector<vector<int>> adj(n, vector<int>(n, INF));
+    for (int i = 0; i < numEdges; ++i) {
+        int u = getIndex(nodes, edgeList[i][0]);
+        int v = getIndex(nodes, edgeList[i][1]);
+        adj[u][v] = min(adj[u][v], edgeList[i][2]);
+    }
+
+    // Bước 3: Chuẩn bị DP và biến
+    int startIdx = getIndex(nodes, (int)start);
+    if (startIdx >= n || startIdx < 0) return "Invalid start node";
+
+    vector<vector<int>> dp(1 << n, vector<int>(n, INF));
+    vector<vector<int>> prev(1 << n, vector<int>(n, -1));
+    dp[1 << startIdx][startIdx] = 0;
+
+    // Bước 4: Quy hoạch động - tính toán
+    for (int mask = 1; mask < (1 << n); ++mask) {
+        for (int u = 0; u < n; ++u) {
+            if (!(mask & (1 << u)) || dp[mask][u] == INF) continue;
+            for (int v = 0; v < n; ++v) {
+                if ((mask & (1 << v)) || adj[u][v] == INF) continue;
+                int nextMask = mask | (1 << v);
+                int newCost = dp[mask][u] + adj[u][v];
+                if (newCost < dp[nextMask][v]) {
+                    dp[nextMask][v] = newCost;
+                    prev[nextMask][v] = u;
+                }
+            }
+        }
+    }
+
+    // Bước 5: Tìm chi phí nhỏ nhất khi quay về điểm xuất phát
+    int minCost = INF;
+    int endNode = -1;
+    int fullMask = (1 << n) - 1;
+
+    for (int i = 0; i < n; ++i) {
+        if (dp[fullMask][i] != INF && adj[i][startIdx] != INF) {
+            int totalCost = dp[fullMask][i] + adj[i][startIdx];
+            if (totalCost < minCost) {
+                minCost = totalCost;
+                endNode = i;
+            }
+        }
+    }
+
+    if (minCost == INF) return "No Hamiltonian cycle found";
+
+    // Bước 6: Tái tạo đường đi
+    vector<int> path;
+    path.push_back(startIdx);
+    int mask = fullMask;
+    int u = endNode;
+
+    while (u != startIdx) {
+        path.push_back(u);
+        int prevNode = prev[mask][u];
+        mask ^= (1 << u);
+        u = prevNode;
+    }
+    path.push_back(startIdx);
+    reverse(path.begin(), path.end());
+
+    // Bước 7: Gộp kết quả thành chuỗi ký tự
+    string result = "";
+    for (int i = 0; i < (int)path.size(); ++i) {
+        result += getChar(nodes, path[i]);
+        if (i < (int)path.size() - 1) result += " ";
+    }
+
+    return result;
+}
